@@ -131,7 +131,6 @@ export function defineMultiChatTests(context: IAgentHostE2ETestContext): void {
 	}
 
 	function peerFileOperationTest(title: string, run: Mocha.AsyncFunc): void {
-		// Skip unstable Codex packaged-Linux shell replay while retaining recording and unaffected platforms.
 		providerTest(title, run, config.fileOperationStrategy === 'fileTools' || context.portableShellToolReplayEnabled);
 	}
 
@@ -759,7 +758,7 @@ export function defineMultiChatTests(context: IAgentHostE2ETestContext): void {
 		assert.strictEqual(readFileSync(file, 'utf8').trim(), 'AFTER_PEER');
 	});
 
-	// Directory creation always uses shell, so apply the Codex packaged-Linux replay gate directly.
+	// Directory creation always uses the shell, even for providers with native file tools.
 	providerTest('peer chat creates a file in a nested directory', async function () {
 		const { sessionUri, workspace } = await createSession('nested-create');
 		const file = join(workspace, 'peer-output', 'report.txt');
@@ -821,14 +820,14 @@ export function defineMultiChatTests(context: IAgentHostE2ETestContext): void {
 		await context.client.call<SubscribeResult>('subscribe', { channel: second });
 
 		const firstPrompt = peerFileOperationPrompt(
-			`Create the file at ${firstFile} containing exactly FIRST_PEER.`,
+			`Create the file at ${firstFile} containing exactly FIRST_PEER with no trailing newline.${PREFER_FILE_TOOLS} Do not verify it with another tool. Then reply exactly "created".`,
 			`node -e "require('fs').writeFileSync('first-peer.txt','FIRST_PEER')"`,
-			'Then reply exactly "created".',
+			'Do not run any other command or tool. Then reply exactly "created".',
 		);
 		const secondPrompt = peerFileOperationPrompt(
-			`Create the file at ${secondFile} containing exactly SECOND_PEER.`,
+			`Create the file at ${secondFile} containing exactly SECOND_PEER with no trailing newline.${PREFER_FILE_TOOLS} Do not verify it with another tool. Then reply exactly "created".`,
 			`node -e "require('fs').writeFileSync('second-peer.txt','SECOND_PEER')"`,
-			'Then reply exactly "created".',
+			'Do not run any other command or tool. Then reply exactly "created".',
 		);
 		await driveTurn(first, 'first-write', firstPrompt, 1);
 		await driveTurn(second, 'second-write', secondPrompt, 10);

@@ -13,6 +13,7 @@ import { ICommandService } from '../../../../../platform/commands/common/command
 import { ContextKeyExpr, IContextKeyService } from '../../../../../platform/contextkey/common/contextkey.js';
 import { ServicesAccessor, IInstantiationService } from '../../../../../platform/instantiation/common/instantiation.js';
 import { IRemoteAgentHostService, RemoteAgentHostsEnabledSettingId } from '../../../../../platform/agentHost/common/remoteAgentHostService.js';
+import { IConfigurationService } from '../../../../../platform/configuration/common/configuration.js';
 import { TUNNEL_ADDRESS_PREFIX } from '../../../../../platform/agentHost/common/tunnelAgentHost.js';
 import { IQuickInputButton, IQuickInputService, IQuickPickItem, IQuickPickSeparator } from '../../../../../platform/quickinput/common/quickInput.js';
 import { Menus } from '../../../../browser/menus.js';
@@ -49,6 +50,7 @@ registerAction2(class extends Action2 {
 		const quickInputService = accessor.get(IQuickInputService);
 		const sessionsProvidersService = accessor.get(ISessionsProvidersService);
 		const remoteAgentHostService = accessor.get(IRemoteAgentHostService);
+		const configurationService = accessor.get(IConfigurationService);
 		const menuService = accessor.get(IMenuService);
 		const contextKeyService = accessor.get(IContextKeyService);
 		const commandService = accessor.get(ICommandService);
@@ -131,11 +133,16 @@ registerAction2(class extends Action2 {
 			const subscribeToProviders = () => {
 				observerStore.clear();
 				for (const p of sessionsProvidersService.getProviders()) {
-					if (isAgentHostProvider(p) && p.connectionStatus) {
-						observerStore.add(autorun(reader => {
-							p.connectionStatus!.read(reader);
-							refresh();
-						}));
+					if (isAgentHostProvider(p)) {
+						if (p.connectionStatus) {
+							observerStore.add(autorun(reader => {
+								p.connectionStatus!.read(reader);
+								refresh();
+							}));
+						}
+						if (p.onDidChangeSessionTypes) {
+							observerStore.add(p.onDidChangeSessionTypes(() => refresh()));
+						}
 					}
 				}
 			};
@@ -144,7 +151,7 @@ registerAction2(class extends Action2 {
 
 			store.add(picker.onDidTriggerItemButton(async e => {
 				if (e.item.kind === 'remote' && e.button === removeButton) {
-					await removeRemoteHost(e.item.provider, remoteAgentHostService);
+					await removeRemoteHost(e.item.provider, remoteAgentHostService, configurationService);
 					// onDidChangeProviders will refresh
 				}
 			}));
